@@ -1,0 +1,117 @@
+version: "3.8"
+
+services:
+
+  ############################################
+  # KAFKA
+  ############################################
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.3.0
+    container_name: kafka
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    ports:
+      - 9092:9092
+    depends_on:
+      - zookeeper
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui
+    container_name: kafka-ui
+    restart: always
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:29092
+    ports:
+      - 9000:8080
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:6.2.0
+    container_name: schema-registry
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:29092
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://schema-registry:8081,http://localhost:8081      
+    ports:
+      - 8081:8081
+    depends_on:
+      - zookeeper
+      - kafka
+
+  ############################################
+  # DEBEZIUM
+  ############################################
+
+  debezium:
+    image: debezium/connect:1.4
+    container_name: debezium
+    environment:
+      BOOTSTRAP_SERVERS: kafka:29092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+    depends_on:
+      - kafka
+    ports:
+      - 8083:8083
+
+  ############################################
+  # POSTGRESQL
+  ############################################
+
+  postgres:
+    image: debezium/postgres:13
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - 5432:5432
+
+  ############################################
+  # LOGS
+  ############################################
+
+  dozzle:
+    image: amir20/dozzle
+    container_name: dozzle
+    restart: on-failure:3
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 9090:8080
+
+  ##############################################
+  # Debezium JDBC Sink Connector
+  ##############################################
+  
+  debezium-jdbc-sink:
+    image: debezium/connect:1.4
+    container_name: debezium-jdbc-sink
+    ports:
+     - 28083:8083
+    environment:
+     - BOOTSTRAP_SERVERS=kafka:29092
+     - GROUP_ID=debezium_connect
+     - CONFIG_STORAGE_TOPIC=debezium_connect_configs
+     - OFFSET_STORAGE_TOPIC=debezium_connect_offsets
+     - STATUS_STORAGE_TOPIC=debezium_connect_status
+    depends_on:
+      - kafka
