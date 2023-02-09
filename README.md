@@ -115,5 +115,5 @@ Deberíamos observar lo siguiente:
 ```
 ## Otros recursos
 En el proyecto también se incluyen:
-* **debezium-ui**: Es una interfaz gráfica que permite ver los tópicos de kafka. URL: http://localhost:9000
+* **kafka-ui**: Es una interfaz gráfica que permite ver los tópicos de kafka. URL: http://localhost:9000
 * **dozzle**: Permite ver los logs de los contenedores que levantamos en docker. URL: http://localhost:9090
