@@ -19,7 +19,7 @@ Nos situamos en la raíz del proyecto y seguimos los siguientes pasos.
 
 Iniciar los contenedores en docker
 ```bash
-docker compose up
+docker compose up -d
 ```
 Instalación de JDBC Sink en debezium.
 ```bash
